@@ -4,7 +4,7 @@ Licensed under version 2.1 of the GNU Lesser General Public License.
 -->
 
 <p align="center">
-  <img src="assets/logo.png" alt="DARP logo" width="240">
+  <img src="assets/logo.png" alt="DARP logo" width="420">
 </p>
 
 # DARP — Diff-Anchored Reporting Proof
@@ -77,7 +77,7 @@ A `.darp` file has **three immutable blocks**:
 | [`darp.ini`](darp.ini) | This repository's live configuration; generates the self-proof artifact below. |
 | [`darp.example.ini`](darp.example.ini) | Clean template with placeholder identity — copy to `darp.ini` and edit for your project. |
 | [`darp.schema.json`](darp.schema.json) | JSON Schema for the `.darp` format; drives verify Level 1 (strict when `jsonschema` is installed). |
-| `*.darp` (root) | DARP's own **self-proof**: the project measured with its own method. Built from `sample_traces/`, verified by CI on every push. |
+| `*.darp` (reports) | DARP's own **self-proof**: the project measured with its own method. Built from `sample_traces/`, verified by CI on every push. |
 | [`sample_traces/`](sample_traces) | The source trace files the self-proof is built from. Including them lets anyone re-derive and validate it (verify Levels 4–5). |
 | [`test_darp.py`](test_darp.py) | unittest regression suite for the metric engine, verifier, and authorship checks. |
 | [`mypy.ini`](mypy.ini) | Type-check configuration (`mypy darp.py` passes clean). |
