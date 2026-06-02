@@ -1,0 +1,622 @@
+{
+  "$schema": "darp:1.0",
+  "darp_version": "1.0",
+  "definitions": {
+    "subject": "hint-followthrough",
+    "project": "DARP",
+    "orcid": "0009-0002-4591-6568",
+    "repo": "https://github.com/lucianofedericopereira/darp",
+    "links": {
+      "Source": "https://github.com/lucianofedericopereira/darp"
+    },
+    "citation": {
+      "cff-version": "1.2.0",
+      "message": "If you use this artifact, please cite it as below.",
+      "title": "DARP: Diff-Anchored Reporting Proof",
+      "type": "software",
+      "authors": [
+        {
+          "given-names": "Luciano Federico",
+          "family-names": "Pereira",
+          "orcid": "https://orcid.org/0009-0002-4591-6568"
+        }
+      ],
+      "version": "1.0",
+      "url": "https://github.com/lucianofedericopereira/darp"
+    },
+    "license": "LGPL-2.1-only",
+    "algorithm": {
+      "engine": {
+        "name": "pandas",
+        "version": "2.2.3",
+        "language": "python"
+      },
+      "parameters": {
+        "session_metric": "first_lookup",
+        "min_sessions": 5,
+        "classification_categories": [
+          "specific_n",
+          "find_n",
+          "grep_n",
+          "other_n",
+          "no_api_n"
+        ],
+        "capture": {
+          "api_command": "api.py",
+          "packages_path": "packages/",
+          "vibe_pattern": "vibe",
+          "memory_tool": "mcp__ccd_session__search_session_transcripts",
+          "trace_pattern": "hint_trace_*.jsonl",
+          "smoke_prefix": "smoke",
+          "packages_tools": [
+            "Glob",
+            "Grep",
+            "Read"
+          ],
+          "specific_families": [
+            "component",
+            "discover",
+            "docs",
+            "frontend",
+            "ls",
+            "model",
+            "which"
+          ],
+          "generic_families": [
+            "find",
+            "grep"
+          ]
+        },
+        "algorithm_map": {
+          "next": "next",
+          "window": "window",
+          "first": "first",
+          "rate": "rate"
+        },
+        "source_map": {
+          "event_field": "event",
+          "hint_value": "darp_hint",
+          "action_value": "darp_action",
+          "ts_field": "ts",
+          "ts_scale": 1.0,
+          "source_field": "source",
+          "synthetic_field": "synthetic",
+          "try_next_field": "try_next",
+          "tool_field": "tool",
+          "invocation_field": "invocation"
+        },
+        "thresholds": {
+          "noise_band": 10.0,
+          "warn_band": 20.0,
+          "div_max": 20.0
+        },
+        "baseline_commit": "43b09055d42058934f0bcdc620b2ccbdfe47ed7f",
+        "baseline_values": {
+          "greplast_gate": 41.0,
+          "read_gate": 17.0
+        },
+        "anchor": {
+          "calendars": [
+            "https://a.pool.opentimestamps.org/digest",
+            "https://b.pool.opentimestamps.org/digest",
+            "https://c.pool.opentimestamps.org/digest"
+          ]
+        }
+      },
+      "definitions": {
+        "greplast_gate": {
+          "algorithm": "next",
+          "trigger_source": "greplast_gate",
+          "description": "Agent reached for grep/find before trying a specific API endpoint.",
+          "followed_if": "Next tool call invokes api.py with a suggested endpoint family.",
+          "modified_if": "Next tool call invokes api.py but a different endpoint than suggested.",
+          "routed_if": "Next tool call is Read, Glob, Grep, or Bash instead of api.py.",
+          "notes": "Matched-pair experiment (variant A vs B) is the next planned intervention."
+        },
+        "read_gate": {
+          "algorithm": "window",
+          "trigger_source": "read_gate",
+          "window": "10",
+          "echo_dedup": "true",
+          "echo_dedup_field": "searched",
+          "echo_dedup_strip_prefix": "Read",
+          "divergence_max": "20.0",
+          "description": "Agent read a file under packages/ without a preceding api.py call in the session.",
+          "followed_if": "An api.py file? call occurs within window tool calls after the gate.",
+          "modified_if": "Any api.py call occurs within window tool calls after the gate.",
+          "routed_if": "No api.py call within window tool calls after the gate.",
+          "notes": "Two views: per-gate% (tuning metric) and per-session% (sanity check). Divergence >20pts between views indicates gate-cluster density, not regression."
+        },
+        "first_lookup": {
+          "algorithm": "first",
+          "description": "Per-session: was the first structured API lookup a specific endpoint rather than a generic one?",
+          "followed_if": "First non-vibe api.py call in the session uses a specific endpoint family.",
+          "modified_if": "N/A \u2014 binary session-level metric; no modified state.",
+          "routed_if": "First non-vibe api.py call uses grep? or find? (generic search).",
+          "notes": "Not hint-driven. Acts as the primary behavioral trend metric. No control arm needed \u2014 the first call is uninfluenced by any gate or hint."
+        },
+        "api_empty": {
+          "algorithm": "next",
+          "trigger_source": "api_empty",
+          "description": "api.py returned an empty result. Hint suggests a narrower or alternative endpoint.",
+          "followed_if": "Next tool call invokes api.py with a suggested endpoint family.",
+          "modified_if": "Next tool call invokes api.py with a different endpoint/query than suggested.",
+          "routed_if": "Next tool call is Read, Glob, Grep, or Bash instead of api.py.",
+          "notes": "Noisy single-point signal. Act only on >10pt sustained shift across multiple checks."
+        }
+      }
+    }
+  },
+  "data": {
+    "generated_at": "2026-06-02T08:32:50+00:00",
+    "measurement_period": {
+      "from": "2025-05-20",
+      "to": "2025-05-25"
+    },
+    "health": {
+      "first_lookup_specific_pct": 75.0,
+      "first_lookup_specific_n": 3,
+      "first_lookup_find_n": 0,
+      "first_lookup_grep_n": 1,
+      "first_lookup_other_n": 1,
+      "first_lookup_no_api_n": 1,
+      "packages_skip_count": 4,
+      "session_count": 6
+    },
+    "metrics": [
+      {
+        "name": "api_empty",
+        "type": "proportion",
+        "n": 1,
+        "k": 1,
+        "value": 100,
+        "breakdown": {
+          "followed": 1,
+          "modified": 0,
+          "routed": 0,
+          "memory": 0
+        }
+      },
+      {
+        "name": "first_lookup",
+        "type": "classification",
+        "n": 6,
+        "k": 3,
+        "value": 75.0,
+        "breakdown": {
+          "specific_n": 3,
+          "find_n": 0,
+          "grep_n": 1,
+          "other_n": 1,
+          "no_api_n": 1
+        }
+      },
+      {
+        "name": "greplast_gate",
+        "type": "proportion",
+        "n": 2,
+        "k": 1,
+        "value": 50,
+        "breakdown": {
+          "followed": 1,
+          "modified": 0,
+          "routed": 1,
+          "memory": 0
+        }
+      },
+      {
+        "name": "read_gate",
+        "type": "window_proportion",
+        "n": 1,
+        "k": 1,
+        "value": 100,
+        "breakdown": {
+          "followed": 1,
+          "routed": 0,
+          "per_gate_pct": 100.0,
+          "session_pct": 100.0,
+          "divergence_pts": 0.0,
+          "divergence_max": 20.0
+        }
+      }
+    ],
+    "trend": [
+      {
+        "date": "2025-05-20",
+        "session_hash": "fb173a948cf4",
+        "session_first_family": "which",
+        "hints": 1,
+        "metrics": {
+          "greplast_gate": {
+            "total": 1,
+            "followed": 1,
+            "pct": 100
+          }
+        }
+      },
+      {
+        "date": "2025-05-21",
+        "session_hash": "d2d6ee88baf6",
+        "session_first_family": "component",
+        "hints": 1,
+        "metrics": {
+          "greplast_gate": {
+            "total": 1,
+            "followed": 0,
+            "pct": 0
+          }
+        }
+      },
+      {
+        "date": "2025-05-22",
+        "session_hash": "a52ba8b1e0bd",
+        "session_first_family": "file",
+        "hints": 1,
+        "metrics": {
+          "read_gate": {
+            "total": 1,
+            "followed": 1,
+            "pct": 100
+          }
+        }
+      },
+      {
+        "date": "2025-05-23",
+        "session_hash": "d31f5b3c363e",
+        "session_first_family": "grep",
+        "hints": 0,
+        "metrics": {}
+      },
+      {
+        "date": "2025-05-24",
+        "session_hash": "5e4f150aea3a",
+        "session_first_family": "docs",
+        "hints": 1,
+        "metrics": {
+          "api_empty": {
+            "total": 1,
+            "followed": 1,
+            "pct": 100
+          }
+        }
+      },
+      {
+        "date": "2025-05-25",
+        "session_hash": "b87b7023cde7",
+        "session_first_family": null,
+        "hints": 0,
+        "metrics": {}
+      }
+    ],
+    "data_commitment": {
+      "source_type": "files",
+      "source_description": "hint_trace_*.jsonl (6 files) in /home/lucho/Downloads/darp/sample_traces",
+      "session_count": 6,
+      "smoke_excluded": 0,
+      "synthetic_excluded": 0,
+      "event_count": 4,
+      "source_hash": "sha256:3d3e5fbf40b4455c3367d4468a35f5fbfb13d90c331954592ae9f4d8f4c7cc70",
+      "source_darp_hash": null,
+      "sessions": [
+        {
+          "id_hash": "fb173a948cf4",
+          "hint_count": 1,
+          "smoke": false,
+          "date": "2025-05-20"
+        },
+        {
+          "id_hash": "d2d6ee88baf6",
+          "hint_count": 1,
+          "smoke": false,
+          "date": "2025-05-21"
+        },
+        {
+          "id_hash": "a52ba8b1e0bd",
+          "hint_count": 1,
+          "smoke": false,
+          "date": "2025-05-22"
+        },
+        {
+          "id_hash": "d31f5b3c363e",
+          "hint_count": 0,
+          "smoke": false,
+          "date": "2025-05-23"
+        },
+        {
+          "id_hash": "5e4f150aea3a",
+          "hint_count": 1,
+          "smoke": false,
+          "date": "2025-05-24"
+        },
+        {
+          "id_hash": "b87b7023cde7",
+          "hint_count": 0,
+          "smoke": false,
+          "date": "2025-05-25"
+        }
+      ],
+      "reproducibility": {
+        "included": true,
+        "events": [
+          {
+            "session_hash": "fb173a948cf4",
+            "event": "action",
+            "ts_offset_s": 0.0,
+            "source": null,
+            "synthetic": null,
+            "try_next_families": null,
+            "tool": "Bash",
+            "is_api_call": true,
+            "api_family": "which",
+            "is_pkg_bypass": false,
+            "seq": 0
+          },
+          {
+            "session_hash": "fb173a948cf4",
+            "event": "hint",
+            "ts_offset_s": 30.0,
+            "source": "greplast_gate",
+            "synthetic": false,
+            "try_next_families": [
+              "which"
+            ],
+            "tool": null,
+            "is_api_call": null,
+            "api_family": null,
+            "is_pkg_bypass": null,
+            "seq": 1
+          },
+          {
+            "session_hash": "fb173a948cf4",
+            "event": "action",
+            "ts_offset_s": 60.0,
+            "source": null,
+            "synthetic": null,
+            "try_next_families": null,
+            "tool": "Bash",
+            "is_api_call": true,
+            "api_family": "which",
+            "is_pkg_bypass": false,
+            "seq": 2
+          },
+          {
+            "session_hash": "d2d6ee88baf6",
+            "event": "hint",
+            "ts_offset_s": 0.0,
+            "source": "greplast_gate",
+            "synthetic": false,
+            "try_next_families": [
+              "component"
+            ],
+            "tool": null,
+            "is_api_call": null,
+            "api_family": null,
+            "is_pkg_bypass": null,
+            "seq": 0
+          },
+          {
+            "session_hash": "d2d6ee88baf6",
+            "event": "action",
+            "ts_offset_s": 30.0,
+            "source": null,
+            "synthetic": null,
+            "try_next_families": null,
+            "tool": "Read",
+            "is_api_call": false,
+            "api_family": null,
+            "is_pkg_bypass": true,
+            "seq": 1
+          },
+          {
+            "session_hash": "d2d6ee88baf6",
+            "event": "action",
+            "ts_offset_s": 60.0,
+            "source": null,
+            "synthetic": null,
+            "try_next_families": null,
+            "tool": "Bash",
+            "is_api_call": true,
+            "api_family": "component",
+            "is_pkg_bypass": false,
+            "seq": 2
+          },
+          {
+            "session_hash": "a52ba8b1e0bd",
+            "event": "hint",
+            "ts_offset_s": 0.0,
+            "source": "read_gate",
+            "synthetic": false,
+            "try_next_families": [
+              "file"
+            ],
+            "tool": null,
+            "is_api_call": null,
+            "api_family": null,
+            "is_pkg_bypass": null,
+            "seq": 0
+          },
+          {
+            "session_hash": "a52ba8b1e0bd",
+            "event": "action",
+            "ts_offset_s": 30.0,
+            "source": null,
+            "synthetic": null,
+            "try_next_families": null,
+            "tool": "Read",
+            "is_api_call": false,
+            "api_family": null,
+            "is_pkg_bypass": true,
+            "seq": 1
+          },
+          {
+            "session_hash": "a52ba8b1e0bd",
+            "event": "action",
+            "ts_offset_s": 60.0,
+            "source": null,
+            "synthetic": null,
+            "try_next_families": null,
+            "tool": "Bash",
+            "is_api_call": true,
+            "api_family": "file",
+            "is_pkg_bypass": false,
+            "seq": 2
+          },
+          {
+            "session_hash": "d31f5b3c363e",
+            "event": "action",
+            "ts_offset_s": 0.0,
+            "source": null,
+            "synthetic": null,
+            "try_next_families": null,
+            "tool": "Bash",
+            "is_api_call": true,
+            "api_family": "grep",
+            "is_pkg_bypass": false,
+            "seq": 0
+          },
+          {
+            "session_hash": "d31f5b3c363e",
+            "event": "action",
+            "ts_offset_s": 30.0,
+            "source": null,
+            "synthetic": null,
+            "try_next_families": null,
+            "tool": "Bash",
+            "is_api_call": true,
+            "api_family": "which",
+            "is_pkg_bypass": false,
+            "seq": 1
+          },
+          {
+            "session_hash": "5e4f150aea3a",
+            "event": "action",
+            "ts_offset_s": 0.0,
+            "source": null,
+            "synthetic": null,
+            "try_next_families": null,
+            "tool": "Bash",
+            "is_api_call": true,
+            "api_family": "docs",
+            "is_pkg_bypass": false,
+            "seq": 0
+          },
+          {
+            "session_hash": "5e4f150aea3a",
+            "event": "hint",
+            "ts_offset_s": 30.0,
+            "source": "api_empty",
+            "synthetic": false,
+            "try_next_families": [
+              "docs"
+            ],
+            "tool": null,
+            "is_api_call": null,
+            "api_family": null,
+            "is_pkg_bypass": null,
+            "seq": 1
+          },
+          {
+            "session_hash": "5e4f150aea3a",
+            "event": "action",
+            "ts_offset_s": 60.0,
+            "source": null,
+            "synthetic": null,
+            "try_next_families": null,
+            "tool": "Bash",
+            "is_api_call": true,
+            "api_family": "docs",
+            "is_pkg_bypass": false,
+            "seq": 2
+          },
+          {
+            "session_hash": "b87b7023cde7",
+            "event": "action",
+            "ts_offset_s": 0.0,
+            "source": null,
+            "synthetic": null,
+            "try_next_families": null,
+            "tool": "Read",
+            "is_api_call": false,
+            "api_family": null,
+            "is_pkg_bypass": true,
+            "seq": 0
+          },
+          {
+            "session_hash": "b87b7023cde7",
+            "event": "action",
+            "ts_offset_s": 30.0,
+            "source": null,
+            "synthetic": null,
+            "try_next_families": null,
+            "tool": "Grep",
+            "is_api_call": false,
+            "api_family": null,
+            "is_pkg_bypass": true,
+            "seq": 1
+          }
+        ]
+      }
+    }
+  },
+  "metadata": {
+    "config_hash": "sha256:16e476abb0687dc416028a94043411043b9c21c7efa94dc3fe9bf0f1f19b4e8b",
+    "document_hash": "sha256:e33ed96bec545d94ed38e48e4a1000556806a5c152e88be450bdaa368d95c650",
+    "content_hash": "sha256:d520a483a3c74e5e10ec3f1f7cd1f4cdf04cf8bd8c06815deea3f883820af77a",
+    "consistency_checks": [
+      {
+        "check": "read_gate_divergence",
+        "metric": "read_gate",
+        "detail": "per-gate 100.0% vs session 100.0% diverge by 0.0 pts",
+        "expected": "divergence <= 20.0 pts",
+        "observed": "0.0 pts",
+        "status": "PASS"
+      },
+      {
+        "check": "session_count",
+        "metric": "all",
+        "detail": "6 sessions included (smoke excluded: 0)",
+        "expected": ">= 5 sessions for reportable signal",
+        "observed": "6",
+        "status": "PASS"
+      },
+      {
+        "check": "session_first_coverage",
+        "metric": "first_lookup_specific",
+        "detail": "3 specific-first, 0 find-first, 1 grep-first, 1 other-first, 1 no-api sessions",
+        "expected": "first_lookup totals == session_count",
+        "observed": "6 == 6",
+        "status": "PASS"
+      }
+    ],
+    "generator": {
+      "version": "1.0.0",
+      "script": "darp.py",
+      "script_hash": "sha256:01ebfaba32ea07d4a66e941d84bde5b9e740d9fe383ffff237041cd8399272a5"
+    },
+    "timestamp": {
+      "status": "confirmed",
+      "stamped_at": "2026-06-02T08:34:00+00:00",
+      "block_height": 952095,
+      "ots_proofs": [
+        {
+          "calendar": "https://a.pool.opentimestamps.org/digest",
+          "status": "confirmed",
+          "proof_b64": "8AgZwKPpclJ2owjwEJ3wXkrVUELpxJSnXcZy/yMI8CAP8uO5mXfDUI3IutSrsa8mLdsJO6t9x6/57BA37KGS4AjxIGUV8Lbj/fARYR+N6JvX795Nk3+hWmoQgZE/oChZ775XCPEEah6VevAInWB9f/6PiNL/AIPf4w0u+QyOLi1odHRwczovL2FsaWNlLmJ0Yy5jYWxlbmRhci5vcGVudGltZXN0YW1wcy5vcmcI8SCHXX39YBwTSGfLz/Gu9sk9tWbgkb6N3Y/bSX1VWJqhagjxILdQG3n6Kp169+Iaa9fKBg+mXRoZT39lULonUZ0GWDBfCPAg1+5QGStcVGYfYkYL/sZtr2Mtc/O/CFNAoIKt8YIYbPQI8CB40vPBDbjQzSeBhhS8AsT4HZIuFhq9KRZOQFa1Rl7iuAjxINIK0Owrz/FWorf84+YB7XBVqlzHVo+rbLoVrSb1C7NcCPAgoetEua35eEHjfT/FwtnENxP5QrnYX74X5Aa1axL+PkMI8CDUm3Q8QlApliuv9ePBzCZfnwOhxqUawTEskBno1r0yigjxIC1FERhmhtMj3QfNh3kVFqz7m6OYOfqA+hqI/Jos5AtcCPAgpdrPKtAAgm+5ZaOxWbWKjW68lwJ8fgfCZK2Ia/b53zAI8CBnKYV5md2qFZN09DS2kFvFYxkEIjNW3j+/Rm0mEe98hgjxIDg0VHP4PQBVNjE3PKI7oQILIxVRCS7D5oNFB+9HL/0zCPAgGxOHNNRSMCqKh41Tj1BPemgl0mcN7QfT3UVSrJiHJMkI8VkBAAAAAV/LdAW5eOZjj3VzWwNybDmEzH3C9YUsDz+6+PdAGzpTAAAAAAD+////ApPEAAAAAAAAFgAUtfMspERYHAj5Aokxt2PkkWI1C8oAAAAAAAAAACJqIPAEHocOAAgI8CBwDyjFpy4IZ1oST5CLLcgWnrcVFcTXlXarxTEBFXm9hAgI8SAWu+c8Yucli1JyrXDAUQQlEyjJsVEgJxudYtFIUOfAVggI8SDjnSyldBDWwXNElO3UKnRRu0Mv9jwL4LO/mYBAq4tuwQgI8CCq9E2Xu+z/H07qq0Fisugt+e5oaehUxUW0LTIrArQ9YQgI8SCw+9sWFUfi6vgaiQBbxHtazxvJnBvnG4nybZ3sm2e+qggI8SAWIBm+SSswIgcwKWnVdFZeTKbAqnAWCh15IIrs5WUBUQgI8CCxsDD8l5yNRlCzIOPRq7SkZbl8E9B5eRqDOcqlGMbCrwgI8SARwrBlWTUB1uTyGZaGmP2+KK2+3ZjW2arT+5g1/HgY7ggI8CB9U44usnuLkB8co73ze1mYuZlq5+yAETYahzbSJR5LTQgI8CD63ePOtrbON1VGE3iV0e14UxJfC5F6c2C8Nc1fA77hGAgI8CCZnkg4+IzTxN2F4165hPEDOm5ZC0gYdIfp+4BXUXLRFAgI8CBknl+gwGie4UOWaiTwlkVspnV0fODANFkkvNDWyYTr8wgI8CCBWZxInYOntao9XUg5FUcgNcm5bPD1cHyEWZRs3XymxggIAAWIlg1z1xkBA5+OOg=="
+        },
+        {
+          "calendar": "https://b.pool.opentimestamps.org/digest",
+          "status": "confirmed",
+          "proof_b64": "8Ahga0vMSk+GSgjwEPJP0XlAqIGfh/PDZn86kWAI8SAHt6ymBzIbmJVP0gKgP7H0jATH/2LakiP7zkIpwIP9twjwIA75u83iQMfrxnoxu8+xUwtelOBTjfP8726NMFexqz8TCPEEah6VfPAIWBoovXJIKgj/AIPf4w0u+QyOLCtodHRwczovL2JvYi5idGMuY2FsZW5kYXIub3BlbnRpbWVzdGFtcHMub3JnCPEg+L5fa9RdagAYxIqsisphDyErwdLk5vQ900E2ewEddcEI8SBPLwd83Sex1XlqtdPw3hHMgoe0V0gRYOEncfRDJR+O6AjxIMtY/gAMr0M0dz2ApDOnv0Khwrap66g2bjPkxllWANdjCPAgLybYxWDvd5fyG1a1XxNbkpZKVWVyntQaWqOIhoFCRd8I8CC3HAX941mfyUHqAk2BEyZNAVLIu7w59eO1yw8ZpmzapwjwIBs5mDCYFVj377MG9xXPCrVg4dOniHYY9PrnoUZciSCvCPAgyWOCW5Yp7jvPtEbMh/ev6hFCIk7Yd5ItABZBGW96isEI8SC+KZpbK/mxpSyn2EhBgJoHMNQsMhCCHcfCOYHlTVgyTQjwIAHDcQ2q5bCmZgDTbM3mq3qWDRMxRR6g/DqLmaZjHDCFCPAga/+9CO6mlLXa9x5X/BAhYJukCb5U58JmJrbTCdhbo00I8SArtWmaN3vTnvAXWum5s5rckaV/pYbD7z8TEHLKjfKejgjxWQEAAAABHeRsHErWg4xB+q4kq24/CvWjBqyLy/HFhGotOLYClnMAAAAAAP7///8CcQsAAAAAAAAWABSMvREUGFfmlIy/an/ug6q1EADmIAAAAAAAAAAAImog8AQehw4ACAjxILSPXhDom4dG8dKbejSakmT3srDUfKGOb0feHwp7VeCcCAjxIHD+H9FwMoGvSrhu/1nTRKcLe1wIGDHp9Nc6WBBN4BS8CAjwIOmINIOCOaowJMN9g1dOGnG5ZWKElvzoV+72ZSPa6/I/CAjxILZ25LuSPLzfiHa1fkB8FJg2+tGclVe5aRRTDxhRnCPTCAjwIB0yLX+mObzm5Rahv58Oirjfe8LubxtvURLi+mceFVM9CAjxIBYgGb5JKzAiBzApadV0Vl5MpsCqcBYKHXkgiuzlZQFRCAjwILGwMPyXnI1GULMg49GrtKRluXwT0Hl5GoM5yqUYxsKvCAjxIBHCsGVZNQHW5PIZloaY/b4orb7dmNbZqtP7mDX8eBjuCAjwIH1Tji6ye4uQHxyjvfN7WZi5mWrn7IARNhqHNtIlHktNCAjwIPrd4862ts43VUYTeJXR7XhTEl8LkXpzYLw1zV8DvuEYCAjwIJmeSDj4jNPE3YXjXrmE8QM6blkLSBh0h+n7gFdRctEUCAjwIGSeX6DAaJ7hQ5ZqJPCWRWymdXR84MA0WSS80NbJhOvzCAjwIIFZnEidg6e1qj1dSDkVRyA1ybls8PVwfIRZlGzdfKbGCAgABYiWDXPXGQEDn446"
+        },
+        {
+          "calendar": "https://c.pool.opentimestamps.org/digest",
+          "status": "failed"
+        }
+      ],
+      "upgraded_at": "2026-06-02T10:47:08+00:00",
+      "verified": true,
+      "block_time": "2026-06-02T08:49:54+00:00",
+      "verified_via": "explorer (https://blockstream.info/api)"
+    }
+  }
+}

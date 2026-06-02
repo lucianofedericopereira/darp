@@ -1,0 +1,337 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "darp:1.0",
+  "title": "Diff-Anchored Reporting Proof — v1.0",
+  "author": "Luciano Federico Pereira",
+  "license": "LGPL-2.1-only",
+  "description": "A verifiable, tamper-evident report of agent behavioral metrics. Structured in three blocks: definitions (who/what/algorithm), data (results/commitment), metadata (hashes/checks/anchor). Integrity is established via content_hash (covers definitions+data) + OTS timestamp.",
+  "type": "object",
+  "required": ["darp_version", "definitions", "data", "metadata"],
+  "additionalProperties": false,
+
+  "$defs": {
+    "sha256_prefixed": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "description": "SHA256 digest in 'sha256:<64-hex-chars>' format."
+    },
+    "proportion_breakdown": {
+      "type": "object",
+      "description": "Outcome counts for a proportion metric.",
+      "required": ["followed"],
+      "additionalProperties": { "type": ["integer", "number", "null"] }
+    },
+    "window_proportion_breakdown": {
+      "type": "object",
+      "description": "Outcome counts plus two-view statistics for window metrics.",
+      "required": ["followed", "routed", "per_gate_pct", "session_pct", "divergence_pts"],
+      "additionalProperties": { "type": ["integer", "number", "null"] }
+    },
+    "classification_breakdown": {
+      "type": "object",
+      "description": "Category counts. specific_n, other_n, and no_api_n always present; generic-family keys driven by [families] in darp.ini. other_n counts sessions whose first API call used a family not listed in specific_families or generic_families.",
+      "required": ["specific_n", "other_n", "no_api_n"],
+      "additionalProperties": { "type": "integer" }
+    }
+  },
+
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "Schema identifier. 'darp:1.0' matches the $id of this schema; update to a published URI once archived."
+    },
+    "darp_version": {
+      "type": "string",
+      "enum": ["1.0"],
+      "description": "Schema version."
+    },
+
+    "definitions": {
+      "type": "object",
+      "description": "Who made this measurement and with what experiment design. Covered by content_hash.",
+      "required": ["subject", "algorithm"],
+      "additionalProperties": false,
+      "properties": {
+        "subject":      { "type": "string", "description": "What is being measured." },
+        "project":      { "type": "string", "description": "Project identifier." },
+        "orcid":        { "type": "string", "pattern": "^\\d{4}-\\d{4}-\\d{4}-\\d{3}[0-9X]$", "description": "ORCID iD of the report author." },
+        "repo":         { "type": "string", "description": "This paper's repository as a full host/owner/repo URL. Hashed half of the orcid+repo authorship claim; checked at verify Level 7 against the author's ORCID record." },
+        "links":        { "type": "object", "description": "Free-form provenance links, as a {description: url} map (preprint, dataset, slides, …).", "additionalProperties": { "type": "string" } },
+        "citation":     { "type": "object", "description": "How to cite the paper, embedded as a Citation File Format (CFF 1.2.0) object so any tool can render APA/BibTeX/MLA.", "additionalProperties": true },
+        "license":      { "type": "string", "description": "License for this measurement artifact. SPDX identifier (e.g. LGPL-2.1-only) or a URL." },
+        "artifacts":    { "type": "array", "description": "Optional list of related artifacts (e.g. dataset or figure references)." },
+        "algorithm": {
+          "type": "object",
+          "description": "Engine declaration, parameters, and metric definitions.",
+          "required": ["definitions"],
+          "additionalProperties": false,
+          "properties": {
+            "engine": {
+              "type": "object",
+              "required": ["name"],
+              "additionalProperties": false,
+              "properties": {
+                "name":     { "type": "string" },
+                "version":  { "type": "string" },
+                "language": { "type": "string" }
+              }
+            },
+            "parameters": {
+              "type": "object",
+              "description": "Implementation parameters: session_metric, min_sessions, classification_categories, capture, thresholds, baseline_commit, baseline_values, anchor.",
+              "additionalProperties": true
+            },
+            "definitions": {
+              "type": "object",
+              "description": "Keyed by metric name. Each entry is the reviewer-facing declaration of what the metric measures.",
+              "additionalProperties": {
+                "type": "object",
+                "required": ["algorithm", "description", "followed_if", "routed_if"],
+                "properties": {
+                  "description": { "type": "string" },
+                  "followed_if": { "type": "string" },
+                  "modified_if": { "type": "string" },
+                  "routed_if":   { "type": "string" },
+                  "notes":       { "type": "string" },
+                  "type":        { "type": "string", "description": "Researcher's semantic label (free text)." },
+                  "algorithm": {
+                    "type": "string",
+                    "description": "Researcher-defined name resolved via [algorithms] map to an internal primitive (next/window/first/rate)."
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+
+    "data": {
+      "type": "object",
+      "description": "Measurement results, data commitment, and reproducibility stream. Covered by content_hash.",
+      "required": ["generated_at", "health", "metrics", "trend", "data_commitment"],
+      "additionalProperties": false,
+      "properties": {
+        "generated_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "ISO 8601 UTC timestamp of report generation."
+        },
+        "measurement_period": {
+          "type": "object",
+          "description": "Date range of sessions included in this measurement.",
+          "additionalProperties": false,
+          "properties": {
+            "from": { "type": ["string", "null"] },
+            "to":   { "type": ["string", "null"] }
+          }
+        },
+        "health": {
+          "type": "object",
+          "description": "Primary behavioral health signal. session_count always present; other keys are {session_metric}_* as configured.",
+          "required": ["session_count"],
+          "properties": {
+            "session_count": { "type": "integer" }
+          },
+          "additionalProperties": { "type": ["number", "null", "integer"] }
+        },
+        "metrics": {
+          "type": "array",
+          "description": "One entry per definition. Abstract statistical type; breakdown shape enforced per type.",
+          "items": {
+            "type": "object",
+            "required": ["name", "type", "n", "value", "breakdown"],
+            "additionalProperties": false,
+            "properties": {
+              "name":      { "type": "string" },
+              "type":      { "type": "string", "enum": ["proportion", "window_proportion", "classification"] },
+              "n":         { "type": "integer", "description": "Denominator (total observations)." },
+              "k":         { "type": ["integer", "null"], "description": "Numerator; null when n=0." },
+              "value":     { "type": ["number", "null"], "description": "Primary scalar: k/n * 100, or null when undefined." },
+              "breakdown": { "type": "object" }
+            },
+            "if":   { "properties": { "type": { "const": "proportion" } }, "required": ["type"] },
+            "then": { "properties": { "breakdown": { "$ref": "#/$defs/proportion_breakdown" } } },
+            "else": {
+              "if":   { "properties": { "type": { "const": "window_proportion" } }, "required": ["type"] },
+              "then": { "properties": { "breakdown": { "$ref": "#/$defs/window_proportion_breakdown" } } },
+              "else": {
+                "if":   { "properties": { "type": { "const": "classification" } }, "required": ["type"] },
+                "then": { "properties": { "breakdown": { "$ref": "#/$defs/classification_breakdown" } } }
+              }
+            }
+          }
+        },
+        "trend": {
+          "type": "array",
+          "description": "Per-session breakdown ordered by session. session_first_family holds the first lookup family for the configured session metric.",
+          "items": {
+            "type": "object",
+            "required": ["session_hash", "hints"],
+            "additionalProperties": true,
+            "properties": {
+              "date":                 { "type": ["string", "null"] },
+              "session_hash":         { "type": "string" },
+              "session_first_family": { "type": ["string", "null"] },
+              "hints":                { "type": "integer" },
+              "metrics": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "object",
+                  "required": ["total", "followed"],
+                  "additionalProperties": false,
+                  "properties": {
+                    "total":    { "type": "integer" },
+                    "followed": { "type": "integer" },
+                    "pct":      { "type": ["integer", "null"] }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "data_commitment": {
+          "type": "object",
+          "description": "Cryptographic commitment to the source data, plus reproducibility stream.",
+          "required": ["source_type", "session_count", "event_count", "source_hash", "reproducibility"],
+          "additionalProperties": false,
+          "properties": {
+            "source_type":        { "type": "string", "enum": ["files", "replay"], "description": "How the data was ingested." },
+            "source_description": { "type": "string", "description": "Human-readable description of the source." },
+            "session_count":      { "type": "integer" },
+            "smoke_excluded":     { "type": "integer" },
+            "synthetic_excluded": { "type": "integer" },
+            "event_count":        { "type": "integer", "description": "Total non-synthetic hint events." },
+            "source_hash":        { "type": ["string", "null"], "description": "SHA256 (sha256: prefixed) of sorted source file contents. Null for replay." },
+            "source_darp_hash":   { "type": ["string", "null"], "description": "SHA256 (sha256: prefixed) of source .darp when source_type is replay." },
+            "sessions": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["id_hash", "hint_count", "smoke"],
+                "additionalProperties": false,
+                "properties": {
+                  "id_hash":    { "type": "string" },
+                  "hint_count": { "type": "integer" },
+                  "smoke":      { "type": "boolean" },
+                  "date":       { "type": ["string", "null"] }
+                }
+              }
+            },
+            "reproducibility": {
+              "type": "object",
+              "required": ["included"],
+              "additionalProperties": false,
+              "properties": {
+                "included": { "type": "boolean" },
+                "events": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "required": ["session_hash", "event"],
+                    "additionalProperties": false,
+                    "properties": {
+                      "session_hash":      { "type": "string" },
+                      "event":             { "type": "string", "enum": ["hint", "action"] },
+                      "source":            { "type": ["string", "null"] },
+                      "synthetic":         { "type": ["boolean", "null"] },
+                      "try_next_families": { "type": ["array", "null"], "items": { "type": "string" } },
+                      "tool":              { "type": ["string", "null"] },
+                      "is_api_call":       { "type": ["boolean", "null"] },
+                      "api_family":        { "type": ["string", "null"] },
+                      "is_pkg_bypass":     { "type": ["boolean", "null"] },
+                      "ts_offset_s":       { "type": "number" },
+                      "seq":               { "type": "integer" }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+
+    "metadata": {
+      "type": "object",
+      "description": "Integrity hashes, consistency checks, generator provenance, and anchor records.",
+      "required": ["config_hash", "document_hash", "content_hash", "consistency_checks", "generator"],
+      "additionalProperties": false,
+      "properties": {
+        "config_hash": {
+          "$ref": "#/$defs/sha256_prefixed",
+          "description": "SHA256 (prefixed) of canonical JSON of definitions block."
+        },
+        "document_hash": {
+          "$ref": "#/$defs/sha256_prefixed",
+          "description": "SHA256 (prefixed) of canonical JSON of data block."
+        },
+        "content_hash": {
+          "$ref": "#/$defs/sha256_prefixed",
+          "description": "SHA256 (prefixed) of canonical JSON of {definitions, data}. This is what OTS and ORCID commit to."
+        },
+        "consistency_checks": {
+          "type": "array",
+          "description": "Internal validity assertions re-derivable from data fields without source data.",
+          "items": {
+            "type": "object",
+            "required": ["check", "metric", "status", "detail"],
+            "additionalProperties": false,
+            "properties": {
+              "check":    { "type": "string" },
+              "metric":   { "type": "string" },
+              "detail":   { "type": "string" },
+              "expected": { "type": "string" },
+              "observed": { "type": "string" },
+              "status":   { "type": "string", "enum": ["PASS", "WARNING", "FAIL"] }
+            }
+          }
+        },
+        "generator": {
+          "type": "object",
+          "description": "Script that produced this file.",
+          "required": ["version", "script", "script_hash"],
+          "additionalProperties": false,
+          "properties": {
+            "version":     { "type": "string" },
+            "script":      { "type": "string" },
+            "script_hash": { "type": "string", "description": "SHA256 (sha256: prefixed) of the generator script." }
+          }
+        },
+        "timestamp": {
+          "type": ["object", "null"],
+          "description": "OpenTimestamps anchor record, written by 'stamp' subcommand. Null until stamped.",
+          "additionalProperties": true,
+          "properties": {
+            "status":       { "type": "string", "enum": ["pending", "confirmed"] },
+            "stamped_at":   { "type": "string" },
+            "block_height": { "type": ["integer", "null"] },
+            "ots_proofs": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": true,
+                "properties": {
+                  "calendar":  { "type": "string" },
+                  "status":    { "type": "string" },
+                  "proof_b64": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "orcid_record": {
+          "type": ["object", "null"],
+          "description": "ORCID work record, written by 'orcid' subcommand. Null until posted.",
+          "additionalProperties": true,
+          "properties": {
+            "orcid_id":    { "type": "string" },
+            "put_code":    { "type": "string" },
+            "work_url":    { "type": "string" },
+            "anchored_at": { "type": "string" }
+          }
+        }
+      }
+    }
+  }
+}

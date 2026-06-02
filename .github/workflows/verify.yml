@@ -1,0 +1,50 @@
+# ════════════════════════════════════════════════════════════════════════════
+# DARP — continuous verification of the published self-proof artifact
+#
+# Author: Luciano Federico Pereira
+# Copyright (C) 2026 Luciano Federico Pereira
+# Licensed under version 2.1 of the GNU Lesser General Public License.
+#
+# Locates the .darp artifact at the repository root and verifies it on every
+# push and pull request: schema, arithmetic re-derivation, content_hash, source
+# hash, and full metric replay (Levels 1–5). Authorship (Level 7) runs as an
+# informational step since it reaches the public ORCID API.
+# ════════════════════════════════════════════════════════════════════════════
+
+name: Verify DARP artifact
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install pandas jsonschema
+
+      - name: Locate the .darp artifact at the repository root
+        id: find
+        run: |
+          file=$(find . -name "*.darp" -type f | head -n 1)
+          if [ -z "$file" ]; then
+            echo "::error::No .darp artifact found at the repository root."
+            exit 1
+          fi
+          echo "Found $file"
+          echo "file=$file" >> "$GITHUB_OUTPUT"
+
+      - name: Verify integrity (Levels 1–5)
+        run: python3 darp.py verify "${{ steps.find.outputs.file }}" --traces sample_traces
+
+      - name: Verify authorship (Level 7, informational)
+        continue-on-error: true
+        run: python3 darp.py verify "${{ steps.find.outputs.file }}" --verify-authorship

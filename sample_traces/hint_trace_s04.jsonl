@@ -1,0 +1,2 @@
+{"event": "darp_action", "tool": "Bash", "invocation": "api.py grep?TODO", "ts": 1747958430}
+{"event": "darp_action", "tool": "Bash", "invocation": "api.py which?model", "ts": 1747958460}

@@ -1,0 +1,3 @@
+{"event": "darp_action", "tool": "Bash", "invocation": "api.py docs?routing", "ts": 1748044830}
+{"event": "darp_hint", "source": "api_empty", "try_next": ["api.py docs?routing_v2"], "ts": 1748044860}
+{"event": "darp_action", "tool": "Bash", "invocation": "api.py docs?routing_v2", "ts": 1748044890}

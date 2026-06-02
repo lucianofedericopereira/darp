@@ -1,0 +1,3 @@
+{"event": "darp_action", "tool": "Bash", "invocation": "api.py which?auth", "ts": 1747699230}
+{"event": "darp_hint", "source": "greplast_gate", "try_next": ["api.py which?db"], "ts": 1747699260}
+{"event": "darp_action", "tool": "Bash", "invocation": "api.py which?db", "ts": 1747699290}
